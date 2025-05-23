@@ -68,6 +68,9 @@ input[type="number"] {
 .operations button:hover {
     background-color: #28518a;
 }
+.operations-a, .operations-b {
+    margin-top: 32px;
+}
 .result {
     background: #f4f6fa;
     border-radius: 6px;
@@ -75,8 +78,16 @@ input[type="number"] {
     min-height: 60px;
     font-size: 17px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    overflow-x: auto;
+    max-width: 100%;
 }
 pre {
     margin: 0;
     font-family: "Consolas", monospace;
+}
+pre#result {
+    white-space: pre;
+    overflow-x: auto;
+    max-width: 100%;
+    display: block;
 }
