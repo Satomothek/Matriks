@@ -77,8 +77,8 @@ function resizeTable(matrixId, action) {
 // Format matriks ke string
 function formatMatrix(matrix) {
     if (typeof matrix === "string") return matrix;
-    if (!Array.isArray(matrix)) return String(matrix);
-    return matrix.map(row => row.join('\t')).join('\n');
+    if (!Array.isArray(matrix)) return toFraction(matrix);
+    return matrix.map(row => row.map(val => toFraction(val)).join('\t')).join('\n');
 }
 
 // Operasi matriks
@@ -138,6 +138,24 @@ const Matrix = {
         return adj.map(row => row.map(x => x/det));
     }
 };
+
+function toFraction(x, tolerance = 1.0E-10) {
+    if (!isFinite(x) || isNaN(x)) return "-";
+    if (Number.isInteger(x)) return x.toString();
+    let h1=1, h2=0, k1=0, k2=1, b = Math.abs(x);
+    let sign = x < 0 ? -1 : 1;
+    do {
+        let a = Math.floor(b);
+        let aux = h1; h1 = a*h1 + h2; h2 = aux;
+        aux = k1; k1 = a*k1 + k2; k2 = aux;
+        b = 1/(b - a);
+    } while (Math.abs(x - sign*h1/k1) > Math.abs(x) * tolerance && k1 <= 10000);
+
+    if (k1 === 0) return "-";
+    if (!isFinite(h1) || !isFinite(k1)) return "-";
+    if (h1 === 0) return "0";
+    return (sign < 0 ? "-" : "") + h1 + "/" + k1;
+}
 
 // Fungsi utama untuk handle tombol
 function calculate(op) {
