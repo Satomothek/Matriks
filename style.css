@@ -3,7 +3,10 @@ body {
     font-family: Arial, sans-serif;
 }
 .container {
-    max-width: 760px;
+    display: inline-block;
+    min-width: 320px;
+    max-width: none;      /* Hilangkan batas max-width */
+    width: auto;          /* Biar fleksibel */
     margin: 40px auto;
     background: #fff;
     border-radius: 10px;
@@ -71,6 +74,15 @@ input[type="number"] {
 .operations-a, .operations-b {
     margin-top: 32px;
 }
+.operations-a button,
+.operations-b button {
+    min-width: 90px;   /* Atur lebar minimum sesuai kebutuhan */
+    min-height: 22px;   /* Atur tinggi minimum sesuai kebutuhan */
+    width: 110px;       /* Lebar tetap */
+    height: 44px;       /* Tinggi tetap */
+    box-sizing: border-box;
+    margin-bottom: 8px; /* Jarak antar tombol jika perlu */
+}
 .result {
     background: #f4f6fa;
     border-radius: 6px;
@@ -90,4 +102,12 @@ pre#result {
     overflow-x: auto;
     max-width: 100%;
     display: block;
+}
+.container-wrapper {
+    width: 100vw;
+    overflow-x: auto;
+    padding: 20px 0;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start; /* atau center jika ingin vertikal juga */
 }
