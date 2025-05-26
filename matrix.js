@@ -81,6 +81,20 @@ function formatMatrix(matrix) {
     return matrix.map(row => row.map(val => toFraction(val)).join('\t')).join('\n');
 }
 
+function formatMatrixPretty(matrix) {
+    // Format matrix as pretty rows for display
+    if (!Array.isArray(matrix)) return toFraction(matrix);
+    return matrix.map(row => '( ' + row.map(val => toFraction(val)).join('\t') + ' )').join('\n');
+}
+
+function formatInverseResult(inputMatrix, inverseMatrix) {
+    return formatMatrixPretty(inputMatrix) + '\n\n^(-1) =\n\n' + formatMatrixPretty(inverseMatrix);
+}
+
+function formatDeterminantResult(inputMatrix, detValue) {
+    return 'det\n' + formatMatrixPretty(inputMatrix) + '\n= ' + toFraction(detValue);
+}
+
 // Operasi matriks
 const Matrix = {
     add(a, b) {
@@ -157,11 +171,104 @@ function toFraction(x, tolerance = 1.0E-10) {
     return (sign < 0 ? "-" : "") + h1 + "/" + k1;
 }
 
+// Gauss-Jordan untuk invers
+function gaussJordanInverse(a, logSteps) {
+    const n = a.length;
+    if (n !== a[0].length) throw "Matriks harus persegi";
+    let m = a.map(row => row.slice());
+    let inv = Array.from({length: n}, (_, i) =>
+        Array.from({length: n}, (_, j) => (i === j ? 1 : 0))
+    );
+    if (logSteps) logSteps.push("Awal:\n" + formatAugmentedMatrix(m, inv));
+    for (let i = 0; i < n; i++) {
+        let maxRow = i;
+        for (let k = i+1; k < n; k++) {
+            if (Math.abs(m[k][i]) > Math.abs(m[maxRow][i])) maxRow = k;
+        }
+        if (m[maxRow][i] === 0) throw "Matriks tidak memiliki invers (pivot 0)";
+        [m[i], m[maxRow]] = [m[maxRow], m[i]];
+        [inv[i], inv[maxRow]] = [inv[maxRow], inv[i]];
+        if (logSteps) logSteps.push(`Tukar baris ${i+1} dengan baris ${maxRow+1}:\n` + formatAugmentedMatrix(m, inv));
+        let pivot = m[i][i];
+        for (let j = 0; j < n; j++) {
+            m[i][j] /= pivot;
+            inv[i][j] /= pivot;
+        }
+        if (logSteps) logSteps.push(`Bagi baris ${i+1} dengan pivot ${toFraction(pivot)}:\n` + formatAugmentedMatrix(m, inv));
+        for (let k = 0; k < n; k++) {
+            if (k === i) continue;
+            let factor = m[k][i];
+            for (let j = 0; j < n; j++) {
+                m[k][j] -= factor * m[i][j];
+                inv[k][j] -= factor * inv[i][j];
+            }
+            if (logSteps) logSteps.push(`Eliminasi baris ${k+1} dengan faktor ${toFraction(factor)}:\n` + formatAugmentedMatrix(m, inv));
+        }
+    }
+    if (logSteps) logSteps.push("Matriks identitas tercapai, invers:\n" + formatAugmentedMatrix(m, inv));
+    return inv;
+}
+
+function bareissInverse(a, logSteps) {
+    const n = a.length;
+    if (n !== a[0].length) throw "Matriks harus persegi";
+    let m = a.map((row, i) => [...row, ...Array.from({length: n}, (_, j) => i === j ? 1 : 0)]);
+    let prevPivot = 1;
+    if (logSteps) logSteps.push("Awal (augmented):\n" + formatMatrix(m));
+    for (let k = 0; k < n; k++) {
+        let pivot = m[k][k];
+        if (pivot === 0) throw "Matriks tidak memiliki invers (pivot 0)";
+        if (logSteps) logSteps.push(`Pivot ke-${k+1}: ${toFraction(pivot)}`);
+        for (let i = 0; i < n; i++) {
+            if (i === k) continue;
+            let factor = m[i][k];
+            for (let j = 0; j < 2*n; j++) {
+                m[i][j] = (pivot * m[i][j] - factor * m[k][j]) / prevPivot;
+            }
+        }
+        prevPivot = pivot;
+        if (logSteps) logSteps.push(`Setelah eliminasi kolom ${k+1}:\n` + formatMatrix(m));
+    }
+    for (let i = 0; i < n; i++) {
+        let factor = m[i][i];
+        for (let j = 0; j < 2*n; j++) {
+            m[i][j] /= factor;
+        }
+    }
+    if (logSteps) logSteps.push("Normalisasi diagonal:\n" + formatMatrix(m));
+    let inv = m.map(row => row.slice(n));
+    if (logSteps) logSteps.push("Ambil bagian kanan sebagai invers:\n" + formatAugmentedMatrix(m.map(row => row.slice(0, n)), inv));
+    return inv;
+}
+
+Matrix.inverse = function(a, method = "adjugate", logSteps) {
+    switch (method) {
+        case "adjugate":
+            const det = Matrix.determinant(a);
+            if (det === 0) throw "Matriks tidak memiliki invers (determinan = 0)";
+            const adj = Matrix.adjoint(a);
+            if (logSteps) {
+                logSteps.push("Determinan: " + det);
+                logSteps.push("Adjugate:\n" + formatMatrix(adj));
+                logSteps.push("Invers = (1/det) * adjugate");
+            }
+            return adj.map(row => row.map(x => x/det));
+        case "gaussjordan":
+            return gaussJordanInverse(a, logSteps);
+        case "bareiss":
+            return bareissInverse(a, logSteps);
+        default:
+            throw "Metode invers tidak dikenali";
+    }
+};
+
 // Fungsi utama untuk handle tombol
 function calculate(op) {
     const matA = readMatrixTable('A');
     const matB = readMatrixTable('B');
     let result = "";
+    let detailsHTML = "";
+    let showDetails = false;
     try {
         switch(op) {
             case 'add':
@@ -180,34 +287,168 @@ function calculate(op) {
                 result = Matrix.transpose(matB);
                 break;
             case 'detA':
-                result = Matrix.determinant(matA);
+                result = formatDeterminantResult(matA, Matrix.determinant(matA));
                 break;
             case 'detB':
-                result = Matrix.determinant(matB);
-                break;
-            case 'invA':
-                result = Matrix.inverse(matA);
-                break;
-            case 'invB':
-                result = Matrix.inverse(matB);
+                result = formatDeterminantResult(matB, Matrix.determinant(matB));
                 break;
             case 'adjA':
-                result = Matrix.adjoint(matA);
+                result = formatMatrixPretty(Matrix.adjoint(matA));
                 break;
             case 'adjB':
-                result = Matrix.adjoint(matB);
+                result = formatMatrixPretty(Matrix.adjoint(matB));
                 break;
+            case 'invA': {
+                // Proses inverse dengan tiga metode
+                let logGauss = [], logAdj = [], logBareiss = [];
+                let invGauss, invAdj, invBareiss;
+                let errorGauss = "", errorAdj = "", errorBareiss = "";
+                // Bareiss
+                try {
+                    invBareiss = bareissInverse(matA, logBareiss);
+                } catch (e) {
+                    errorBareiss = e.toString();
+                }
+                // Adjugate
+                try {
+                    invAdj = Matrix.inverse(matA, "adjugate", logAdj);
+                } catch (e) {
+                    errorAdj = e.toString();
+                }
+                // Gauss-Jordan (DIPAKAI SEBAGAI HASIL UTAMA)
+                try {
+                    invGauss = gaussJordanInverse(matA, logGauss);
+                } catch (e) {
+                    errorGauss = e.toString();
+                }
+                showDetails = true;
+                // Hasil utama (pakai Gauss-Jordan jika tidak error, jika error pakai Adjugate, dst)
+                if (!errorGauss) {
+                    result = formatInverseResult(matA, invGauss);
+                } else if (!errorAdj) {
+                    result = formatInverseResult(matA, invAdj);
+                } else if (!errorBareiss) {
+                    result = formatInverseResult(matA, invBareiss);
+                } else {
+                    result = "Error: Matriks tidak memiliki invers";
+                }
+                // Details HTML: pakai <details>
+                detailsHTML =
+                    `<details>
+                        <summary>(Montante's method (Bareiss algorithm))</summary>
+                        <pre>${errorBareiss ? errorBareiss : (formatMatrix(invBareiss) + "\n\n" + logBareiss.join("\n\n"))}</pre>
+                    </details>
+                    <details>
+                        <summary>(Gauss–Jordan elimination)</summary>
+                        <pre>${errorGauss ? errorGauss : (formatMatrix(invGauss) + "\n\n" + logGauss.join("\n\n"))}</pre>
+                    </details>
+                    <details>
+                        <summary>(Using the adjugate matrix)</summary>
+                        <pre>${errorAdj ? errorAdj : (formatMatrix(invAdj) + "\n\n" + logAdj.join("\n\n"))}</pre>
+                    </details>`;
+                break;
+            }
+            case 'invB': {
+                let logGauss = [], logAdj = [], logBareiss = [];
+                let invGauss, invAdj, invBareiss;
+                let errorGauss = "", errorAdj = "", errorBareiss = "";
+                // Bareiss
+                try {
+                    invBareiss = bareissInverse(matB, logBareiss);
+                } catch (e) {
+                    errorBareiss = e.toString();
+                }
+                // Adjugate
+                try {
+                    invAdj = Matrix.inverse(matB, "adjugate", logAdj);
+                } catch (e) {
+                    errorAdj = e.toString();
+                }
+                // Gauss-Jordan (DIPAKAI SEBAGAI HASIL UTAMA)
+                try {
+                    invGauss = gaussJordanInverse(matB, logGauss);
+                } catch (e) {
+                    errorGauss = e.toString();
+                }
+                showDetails = true;
+                if (!errorGauss) {
+                    result = formatInverseResult(matB, invGauss);
+                } else if (!errorAdj) {
+                    result = formatInverseResult(matB, invAdj);
+                } else if (!errorBareiss) {
+                    result = formatInverseResult(matB, invBareiss);
+                } else {
+                    result = "Error: Matriks tidak memiliki invers";
+                }
+                detailsHTML =
+                    `<details>
+                        <summary>(Montante's method (Bareiss algorithm))</summary>
+                        <pre>${errorBareiss ? errorBareiss : (formatMatrix(invBareiss) + "\n\n" + logBareiss.join("\n\n"))}</pre>
+                    </details>
+                    <details>
+                        <summary>(Gauss–Jordan elimination)</summary>
+                        <pre>${errorGauss ? errorGauss : (formatMatrix(invGauss) + "\n\n" + logGauss.join("\n\n"))}</pre>
+                    </details>
+                    <details>
+                        <summary>(Using the adjugate matrix)</summary>
+                        <pre>${errorAdj ? errorAdj : (formatMatrix(invAdj) + "\n\n" + logAdj.join("\n\n"))}</pre>
+                    </details>`;
+                break;
+            }
             default:
                 result = "Operasi tidak dikenali";
         }
     } catch (err) {
         result = "Error: " + err;
+        showDetails = false;
     }
-    document.getElementById('result').textContent = formatMatrix(result);
+    document.getElementById('result').textContent = result;
+const detailsElem = document.getElementById('result-details');
+if (showDetails) {
+    detailsElem.style.display = "";
+    detailsElem.innerHTML = detailsHTML;
+} else {
+    detailsElem.style.display = "none";
+}
 }
 
 // Inisialisasi awal
 window.onload = function() {
     createMatrixTable('A', 2, 2);
     createMatrixTable('B', 2, 2);
+}
+
+function formatAugmentedMatrix(left, right) {
+     // Gabungkan left dan right jadi satu array 2D
+    const n = left.length;
+    const m = left[0].length;
+    const p = right[0].length;
+    // Gabungkan per baris
+    const rows = [];
+    for (let i = 0; i < n; i++) {
+        rows.push([...left[i], '|', ...right[i]]);
+    }
+    // Hitung lebar maksimum tiap kolom
+    const colWidths = [];
+    for (let j = 0; j < m + 1 + p; j++) {
+        let maxLen = 0;
+        for (let i = 0; i < n; i++) {
+            let val = rows[i][j];
+            if (val === '|') val = '|';
+            else val = toFraction(val);
+            if (val.length > maxLen) maxLen = val.length;
+        }
+        colWidths[j] = maxLen;
+    }
+    // Format tiap baris dengan padding
+    return rows.map(row =>
+        '( ' +
+        row.map((val, j) => {
+            if (val === '|') return ' | ';
+            let s = toFraction(val);
+            // rata kanan
+            return s.padStart(colWidths[j], ' ');
+        }).join(' ') +
+        ' )'
+    ).join('\n');
 }
