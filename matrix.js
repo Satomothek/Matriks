@@ -82,9 +82,25 @@ function formatMatrix(matrix) {
 }
 
 function formatMatrixPretty(matrix) {
-    // Format matrix as pretty rows for display
+    // Format matrix as pretty rows for display, rata kanan
     if (!Array.isArray(matrix)) return toFraction(matrix);
-    return matrix.map(row => '( ' + row.map(val => toFraction(val)).join('\t') + ' )').join('\n');
+    // Hitung lebar maksimum tiap kolom
+    const n = matrix.length;
+    const m = matrix[0].length;
+    const colWidths = [];
+    for (let j = 0; j < m; j++) {
+        let maxLen = 0;
+        for (let i = 0; i < n; i++) {
+            let s = toFraction(matrix[i][j]);
+            if (s.length > maxLen) maxLen = s.length;
+        }
+        colWidths[j] = maxLen;
+    }
+    return matrix.map(row =>
+        '( ' +
+        row.map((val, j) => toFraction(val).padStart(colWidths[j], ' ')).join('\t') +
+        ' )'
+    ).join('\n');
 }
 
 function formatInverseResult(inputMatrix, inverseMatrix) {
@@ -311,11 +327,27 @@ function simplifyFraction(num, denom) {
 }
 
 function formatMatrixPrettyFraction(matrix) {
-    // Format matrix as pretty rows for display, menyederhanakan pecahan
+    // Format matrix as pretty rows for display, menyederhanakan pecahan dan rata kanan
     if (!Array.isArray(matrix)) return toFraction(matrix);
-    return matrix.map(row => '( ' + row.join('\t') + ' )').join('\n');
+    const n = matrix.length;
+    const m = matrix[0].length;
+    const colWidths = [];
+    for (let j = 0; j < m; j++) {
+        let maxLen = 0;
+        for (let i = 0; i < n; i++) {
+            let s = matrix[i][j].toString();
+            if (s.length > maxLen) maxLen = s.length;
+        }
+        colWidths[j] = maxLen;
+    }
+    return matrix.map(row =>
+        '( ' +
+        row.map((val, j) => val.toString().padStart(colWidths[j], ' ')).join('\t') +
+        ' )'
+    ).join('\n');
 }
 
+// Invers matriks dengan metode yang dipilih
 Matrix.inverse = function(a, method = "adjugate", logSteps) {
     switch (method) {
         case "adjugate":
@@ -373,12 +405,30 @@ function calculate(op) {
             case 'detB':
                 result = formatDeterminantResult(matB, Matrix.determinant(matB));
                 break;
-            case 'adjA':
-                result = formatMatrixPretty(Matrix.adjoint(matA));
+            case 'adjA': {
+                // Tampilkan proses adjoint matriks A
+                const adjA = Matrix.adjoint(matA);
+                const logAdjoint = formatAdjointSteps(matA);
+                result = formatMatrixPretty(adjA);
+                detailsHTML = `<details>
+<summary>Adjugate Matrix</summary>
+<pre>${logAdjoint}</pre>
+</details>`;
+                showDetails = true;
                 break;
-            case 'adjB':
-                result = formatMatrixPretty(Matrix.adjoint(matB));
+            }
+            case 'adjB': {
+                // Tampilkan proses adjoint matriks B
+                const adjB = Matrix.adjoint(matB);
+                const logAdjoint = formatAdjointSteps(matB);
+                result = formatMatrixPretty(adjB);
+                detailsHTML = `<details>
+<summary>Adjugate Matrix</summary>
+<pre>${logAdjoint}</pre>
+</details>`;
+                showDetails = true;
                 break;
+            }
             case 'invA': {
                 // Proses inverse dengan tiga metode
                 let logGauss = [], logAdj = [], logBareiss = [];
@@ -484,7 +534,7 @@ window.onload = function() {
 }
 
 function formatAugmentedMatrix(left, right) {
-     // Gabungkan left dan right jadi satu array 2D
+    // Gabungkan left dan right jadi satu array 2D
     const n = left.length;
     const m = left[0].length;
     const p = right[0].length;
@@ -505,13 +555,12 @@ function formatAugmentedMatrix(left, right) {
         }
         colWidths[j] = maxLen;
     }
-    // Format tiap baris dengan padding
+    // Format tiap baris dengan padding rata kanan
     return rows.map(row =>
         '( ' +
         row.map((val, j) => {
             if (val === '|') return ' | ';
             let s = toFraction(val);
-            // rata kanan
             return s.padStart(colWidths[j], ' ');
         }).join(' ') +
         ' )'
@@ -531,4 +580,17 @@ function buildDetailsHTML(errorBareiss, invBareiss, logBareiss, errorGauss, invG
         <summary>Adjugate matrix</summary>
         <pre>${errorAdj ? errorAdj : (formatMatrix(invAdj) + "\n\n" + logAdj.join("\n\n"))}</pre>
     </details>`;
+}
+
+function formatAdjointSteps(matrix) {
+    let steps = [];
+    // Langkah minor dan cofactor
+    steps.push("Langkah Minor dan Cofactor:\n" + formatCofactorProcess(matrix));
+    // Matriks cofactor
+    const cofactor = Matrix.cofactorMatrix(matrix);
+    steps.push("Matriks Cofactor:\n" + formatMatrixPretty(cofactor));
+    // Transpose (Adjugate)
+    const adj = Matrix.transpose(cofactor);
+    steps.push("Transpose (Adjugate):\n" + formatMatrixPretty(adj));
+    return steps.join('\n\n');
 }
