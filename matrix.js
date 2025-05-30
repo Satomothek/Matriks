@@ -241,17 +241,98 @@ function bareissInverse(a, logSteps) {
     return inv;
 }
 
+// Tambahkan fungsi untuk memformat proses minor dan cofactor
+function formatMinorProcess(matrix, i, j) {
+    const minor = Matrix.minor(matrix, i, j);
+    const sign = ((i + j) % 2 === 0) ? 1 : -1;
+    const detMinor = Matrix.determinant(minor);
+    let formula = `Minor (${i+1},${j+1}):\n${formatMatrixPretty(minor)}\n`;
+    formula += `Cofactor (${i+1},${j+1}) = (${sign === 1 ? "+" : "-"}1) * det(minor) = (${sign === 1 ? "+" : "-"}1) * ${detMinor} = ${sign * detMinor}`;
+    return formula;
+}
+
+function formatCofactorProcess(matrix) {
+    const n = matrix.length;
+    let steps = [];
+    for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+            steps.push(formatMinorProcess(matrix, i, j));
+        }
+    }
+    return steps.join('\n\n');
+}
+
+function formatAdjugateProcess(matrix) {
+    const cofactor = Matrix.cofactorMatrix(matrix);
+    let s = "Matriks Cofactor:\n" + formatMatrixPretty(cofactor) + "\n\n";
+    s += "Transpose (Adjugate):\n" + formatMatrixPretty(Matrix.transpose(cofactor));
+    return s;
+}
+
+function formatAdjugateDivision(adj, det) {
+    // Tampilkan setiap elemen adjugate dibagi determinan dalam bentuk pembagian, misal: -7/3
+    return adj.map(row =>
+        '( ' + row.map(val => {
+            // Jika hasil bagi bulat, tampilkan bulat, jika tidak tampilkan pembagian
+            if (val % det === 0) {
+                return (val / det).toString();
+            } else {
+                // Sederhanakan pecahan
+                function gcd(a, b) {
+                    return b === 0 ? a : gcd(b, a % b);
+                }
+                let n = Math.round(val), d = Math.round(det);
+                let sign = (n * d < 0) ? -1 : 1;
+                n = Math.abs(n);
+                d = Math.abs(d);
+                let factor = gcd(n, d);
+                n = n / factor;
+                d = d / factor;
+                let frac = (sign < 0 ? '-' : '') + n + '/' + d;
+                return frac;
+            }
+        }).join('\t') + ' )'
+    ).join('\n');
+}
+
+function simplifyFraction(num, denom) {
+    function gcd(a, b) {
+        return b === 0 ? a : gcd(b, a % b);
+    }
+    let n = Math.round(num), d = Math.round(denom);
+    let sign = (n * d < 0) ? -1 : 1;
+    n = Math.abs(n);
+    d = Math.abs(d);
+    let factor = gcd(n, d);
+    n = n / factor;
+    d = d / factor;
+    if (d === 1) return (sign < 0 ? '-' : '') + n;
+    return (sign < 0 ? '-' : '') + n + '/' + d;
+}
+
+function formatMatrixPrettyFraction(matrix) {
+    // Format matrix as pretty rows for display, menyederhanakan pecahan
+    if (!Array.isArray(matrix)) return toFraction(matrix);
+    return matrix.map(row => '( ' + row.join('\t') + ' )').join('\n');
+}
+
 Matrix.inverse = function(a, method = "adjugate", logSteps) {
     switch (method) {
         case "adjugate":
             const det = Matrix.determinant(a);
             if (det === 0) throw "Matriks tidak memiliki invers (determinan = 0)";
-            const adj = Matrix.adjoint(a);
+            const cofactor = Matrix.cofactorMatrix(a);
+            const adj = Matrix.transpose(cofactor);
             if (logSteps) {
                 logSteps.push("Determinan: " + det);
-                logSteps.push("Adjugate:\n" + formatMatrix(adj));
-                logSteps.push("Invers = (1/det) * adjugate");
+                logSteps.push("Langkah Minor dan Cofactor:\n" + formatCofactorProcess(a));
+                logSteps.push("Matriks Cofactor:\n" + formatMatrixPretty(cofactor) + "\n\nTranspose (Adjugate):\n" + formatMatrixPretty(adj));
+                logSteps.push(`Invers = (1/det) * adjugate, det = ${det}`);
+                // Hasil akhir invers dalam bentuk pecahan sederhana
+                let inverseFinal = adj.map(row => row.map(x => simplifyFraction(x, det)));
+                logSteps.push("Hasil akhir invers:\n" + formatMatrixPrettyFraction(inverseFinal));
             }
+            // Return hasil akhir invers dalam bentuk angka (bukan string pecahan)
             return adj.map(row => row.map(x => x/det));
         case "gaussjordan":
             return gaussJordanInverse(a, logSteps);
@@ -281,10 +362,10 @@ function calculate(op) {
                 result = Matrix.multiply(matA, matB);
                 break;
             case 'transposeA':
-                result = Matrix.transpose(matA);
+                result = formatMatrixPretty(Matrix.transpose(matA));
                 break;
             case 'transposeB':
-                result = Matrix.transpose(matB);
+                result = formatMatrixPretty(Matrix.transpose(matB));
                 break;
             case 'detA':
                 result = formatDeterminantResult(matA, Matrix.determinant(matA));
@@ -333,19 +414,11 @@ function calculate(op) {
                     result = "Error: Matriks tidak memiliki invers";
                 }
                 // Details HTML: pakai <details>
-                detailsHTML =
-                    `<details>
-                        <summary>(Montante's method (Bareiss algorithm))</summary>
-                        <pre>${errorBareiss ? errorBareiss : (formatMatrix(invBareiss) + "\n\n" + logBareiss.join("\n\n"))}</pre>
-                    </details>
-                    <details>
-                        <summary>(Gauss–Jordan elimination)</summary>
-                        <pre>${errorGauss ? errorGauss : (formatMatrix(invGauss) + "\n\n" + logGauss.join("\n\n"))}</pre>
-                    </details>
-                    <details>
-                        <summary>(Using the adjugate matrix)</summary>
-                        <pre>${errorAdj ? errorAdj : (formatMatrix(invAdj) + "\n\n" + logAdj.join("\n\n"))}</pre>
-                    </details>`;
+                detailsHTML = buildDetailsHTML(
+                    errorBareiss, invBareiss, logBareiss,
+                    errorGauss, invGauss, logGauss,
+                    errorAdj, invAdj, logAdj
+                );
                 break;
             }
             case 'invB': {
@@ -380,19 +453,11 @@ function calculate(op) {
                 } else {
                     result = "Error: Matriks tidak memiliki invers";
                 }
-                detailsHTML =
-                    `<details>
-                        <summary>(Montante's method (Bareiss algorithm))</summary>
-                        <pre>${errorBareiss ? errorBareiss : (formatMatrix(invBareiss) + "\n\n" + logBareiss.join("\n\n"))}</pre>
-                    </details>
-                    <details>
-                        <summary>(Gauss–Jordan elimination)</summary>
-                        <pre>${errorGauss ? errorGauss : (formatMatrix(invGauss) + "\n\n" + logGauss.join("\n\n"))}</pre>
-                    </details>
-                    <details>
-                        <summary>(Using the adjugate matrix)</summary>
-                        <pre>${errorAdj ? errorAdj : (formatMatrix(invAdj) + "\n\n" + logAdj.join("\n\n"))}</pre>
-                    </details>`;
+                detailsHTML = buildDetailsHTML(
+                    errorBareiss, invBareiss, logBareiss,
+                    errorGauss, invGauss, logGauss,
+                    errorAdj, invAdj, logAdj
+                );
                 break;
             }
             default:
@@ -451,4 +516,19 @@ function formatAugmentedMatrix(left, right) {
         }).join(' ') +
         ' )'
     ).join('\n');
+}
+
+function buildDetailsHTML(errorBareiss, invBareiss, logBareiss, errorGauss, invGauss, logGauss, errorAdj, invAdj, logAdj) {
+    return `<details>
+        <summary>Montante's method (Bareiss algorithm)</summary>
+        <pre>${errorBareiss ? errorBareiss : (formatMatrix(invBareiss) + "\n\n" + logBareiss.join("\n\n"))}</pre>
+    </details>
+    <details>
+        <summary>Gauss–Jordan elimination</summary>
+        <pre>${errorGauss ? errorGauss : (formatMatrix(invGauss) + "\n\n" + logGauss.join("\n\n"))}</pre>
+    </details>
+    <details>
+        <summary>Adjugate matrix</summary>
+        <pre>${errorAdj ? errorAdj : (formatMatrix(invAdj) + "\n\n" + logAdj.join("\n\n"))}</pre>
+    </details>`;
 }
