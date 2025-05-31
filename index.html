@@ -55,6 +55,12 @@
             <button onclick="calculate('subtract')">Pengurangan (A - B)</button>
             <button onclick="calculate('multiply')">Perkalian (A × B)</button>
         </div>
+        <!-- Kolom input ekspresi skalar/manual -->
+        <div class="operations" style="margin-bottom: 20px;">
+            <label for="manualExpr" style="margin-right:8px;">Ekspresi Matriks:</label>
+            <input type="text" id="manualExpr" value="2A+3B" style="width:120px; margin-right:8px;" placeholder="misal: 2A-3B">
+            <button onclick="calculate('manualExpr')">=</button>
+        </div>
         <div class="result">
             <h2>Hasil</h2>
             <pre id="result"></pre>
