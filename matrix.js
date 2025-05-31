@@ -108,7 +108,11 @@ function formatInverseResult(inputMatrix, inverseMatrix) {
 }
 
 function formatDeterminantResult(inputMatrix, detValue) {
-    return 'det\n' + formatMatrixPretty(inputMatrix) + '\n= ' + toFraction(detValue);
+    return (
+        'det\n' +
+        formatMatrixPretty(inputMatrix) +
+        '\n= ' + toFraction(detValue)
+    );
 }
 
 // Operasi matriks
@@ -166,6 +170,9 @@ const Matrix = {
         if (det === 0) throw "Matriks tidak memiliki invers (determinan = 0)";
         const adj = Matrix.adjoint(a);
         return adj.map(row => row.map(x => x/det));
+    },
+    scalarMultiply(matrix, scalar) {
+        return matrix.map(row => row.map(val => val * scalar));
     }
 };
 
@@ -382,16 +389,17 @@ function calculate(op) {
     let result = "";
     let detailsHTML = "";
     let showDetails = false;
+    const scalar = parseFloat(document.getElementById('scalarInput')?.value || 1);
     try {
         switch(op) {
             case 'add':
-                result = Matrix.add(matA, matB);
+                result = formatMatrixPretty(Matrix.add(matA, matB));
                 break;
             case 'subtract':
-                result = Matrix.subtract(matA, matB);
+                result = formatMatrixPretty(Matrix.subtract(matA, matB));
                 break;
             case 'multiply':
-                result = Matrix.multiply(matA, matB);
+                result = formatMatrixPretty(Matrix.multiply(matA, matB));
                 break;
             case 'transposeA':
                 result = formatMatrixPretty(Matrix.transpose(matA));
@@ -401,9 +409,13 @@ function calculate(op) {
                 break;
             case 'detA':
                 result = formatDeterminantResult(matA, Matrix.determinant(matA));
+                detailsHTML = buildDeterminantDetailsHTML_Sarrus(matA, Matrix.determinant(matA));
+                showDetails = true;
                 break;
             case 'detB':
                 result = formatDeterminantResult(matB, Matrix.determinant(matB));
+                detailsHTML = buildDeterminantDetailsHTML_Sarrus(matB, Matrix.determinant(matB));
+                showDetails = true;
                 break;
             case 'adjA': {
                 // Tampilkan proses adjoint matriks A
@@ -510,6 +522,12 @@ function calculate(op) {
                 );
                 break;
             }
+            // HAPUS case 'scalarA' dan 'scalarB'
+            case 'manualExpr': {
+                const expr = document.getElementById('manualExpr').value.trim();
+                result = calculateManualMatrixExpression(expr, matA, matB);
+                break;
+            }
             default:
                 result = "Operasi tidak dikenali";
         }
@@ -582,6 +600,14 @@ function buildDetailsHTML(errorBareiss, invBareiss, logBareiss, errorGauss, invG
     </details>`;
 }
 
+function buildDeterminantDetailsHTML(errorTri, detTri, logTri, errorSarrus, detSarrus, logSarrus, errorBareiss, detBareiss, logBareiss, errorGauss, detGauss, logGauss) {
+    return `<details>
+    <summary>Aturan Sarrus</summary>
+    <pre>${errorSarrus ? errorSarrus : (toFraction(detSarrus) + "\n\n" + logSarrus.join("\n\n"))}</pre>
+    </details>
+    `;
+}
+
 function formatAdjointSteps(matrix) {
     let steps = [];
     // Langkah minor dan cofactor
@@ -593,4 +619,117 @@ function formatAdjointSteps(matrix) {
     const adj = Matrix.transpose(cofactor);
     steps.push("Transpose (Adjugate):\n" + formatMatrixPretty(adj));
     return steps.join('\n\n');
+}
+
+// Fungsi untuk menampilkan proses Sarrus pada matriks 3x3
+function sarrusDeterminantSteps(matrix) {
+    // matrix: array 3x3
+    let m = matrix;
+    let steps = [];
+    // Salin dua kolom pertama ke kanan
+    let ext = [
+        [m[0][0], m[0][1], m[0][2], m[0][0], m[0][1]],
+        [m[1][0], m[1][1], m[1][2], m[1][0], m[1][1]],
+        [m[2][0], m[2][1], m[2][2], m[2][0], m[2][1]]
+    ];
+    steps.push("Salin dua kolom pertama ke kanan:\n" +
+        ext.map(row => row.map(x => toFraction(x)).join('\t')).join('\n')
+    );
+    // Hitung jumlah diagonal utama
+    let diag1 = m[0][0]*m[1][1]*m[2][2];
+    let diag2 = m[0][1]*m[1][2]*m[2][0];
+    let diag3 = m[0][2]*m[1][0]*m[2][1];
+    steps.push(
+        `Diagonal utama:\n` +
+        `(${toFraction(m[0][0])} × ${toFraction(m[1][1])} × ${toFraction(m[2][2])}) = ${toFraction(diag1)}\n` +
+        `(${toFraction(m[0][1])} × ${toFraction(m[1][2])} × ${toFraction(m[2][0])}) = ${toFraction(diag2)}\n` +
+        `(${toFraction(m[0][2])} × ${toFraction(m[1][0])} × ${toFraction(m[2][1])}) = ${toFraction(diag3)}`
+    );
+    // Hitung jumlah diagonal anti
+    let adiag1 = m[0][2]*m[1][1]*m[2][0];
+    let adiag2 = m[0][0]*m[1][2]*m[2][1];
+    let adiag3 = m[0][1]*m[1][0]*m[2][2];
+    steps.push(
+        `Diagonal anti:\n` +
+        `(${toFraction(m[0][2])} × ${toFraction(m[1][1])} × ${toFraction(m[2][0])}) = ${toFraction(adiag1)}\n` +
+        `(${toFraction(m[0][0])} × ${toFraction(m[1][2])} × ${toFraction(m[2][1])}) = ${toFraction(adiag2)}\n` +
+        `(${toFraction(m[0][1])} × ${toFraction(m[1][0])} × ${toFraction(m[2][2])}) = ${toFraction(adiag3)}`
+    );
+    let sumDiag = diag1 + diag2 + diag3;
+    let sumAdiag = adiag1 + adiag2 + adiag3;
+    let det = sumDiag - sumAdiag;
+    steps.push(
+        `Jumlah diagonal utama: ${toFraction(diag1)} + ${toFraction(diag2)} + ${toFraction(diag3)} = ${toFraction(sumDiag)}\n` +
+        `Jumlah diagonal anti: ${toFraction(adiag1)} + ${toFraction(adiag2)} + ${toFraction(adiag3)} = ${toFraction(sumAdiag)}\n` +
+        `Determinan = Jumlah diagonal utama - Jumlah diagonal anti = ${toFraction(sumDiag)} - ${toFraction(sumAdiag)} = ${toFraction(det)}`
+    );
+    return steps.join('\n\n');
+}
+
+// Fungsi untuk menampilkan matriks Sarrus dengan garis diagonal
+function formatSarrusMatrixWithDiagonals(matrix) {
+    // matrix: 3x3
+    // Buat matriks 3x5 (salin dua kolom pertama ke kanan)
+    let ext = [
+        [matrix[0][0], matrix[0][1], matrix[0][2], matrix[0][0], matrix[0][1]],
+        [matrix[1][0], matrix[1][1], matrix[1][2], matrix[1][0], matrix[1][1]],
+        [matrix[2][0], matrix[2][1], matrix[2][2], matrix[2][0], matrix[2][1]]
+    ];
+    // Tampilkan tanpa garis, hanya angka
+    let lines = [];
+    for (let i = 0; i < 3; i++) {
+        let row = [];
+        for (let j = 0; j < 5; j++) {
+            row.push(toFraction(ext[i][j]));
+        }
+        lines.push(row.join('\t'));
+    }
+    return lines.join('\n');
+}
+
+// Fungsi untuk menampilkan detail proses aturan Sarrus
+function buildDeterminantDetailsHTML_Sarrus(inputMatrix, detValue) {
+    if (
+        Array.isArray(inputMatrix) &&
+        inputMatrix.length === 3 &&
+        inputMatrix[0].length === 3
+    ) {
+        let proses = sarrusDeterminantSteps(inputMatrix);
+        return `<details>
+    <summary>Aturan Sarrus</summary>
+    <pre>${proses}</pre>
+</details>`;
+    }
+    return '';
+}
+
+function calculateManualMatrixExpression(expr, matA, matB) {
+    // Mendukung ekspresi seperti: 2A+3B, -A+B, 0.5A-2B, dst
+    // Hanya mendukung A dan B, + dan -, serta koefisien real
+    let re = /([+-]?\s*\d*\.?\d*)\s*([AB])/gi;
+    let m, coefA = 0, coefB = 0, found = false;
+    while ((m = re.exec(expr)) !== null) {
+        found = true;
+        let coef = m[1].replace(/\s+/g, '');
+        if (coef === '' || coef === '+') coef = 1;
+        else if (coef === '-') coef = -1;
+        else coef = parseFloat(coef);
+        if (m[2] === 'A') coefA += coef;
+        if (m[2] === 'B') coefB += coef;
+    }
+    // Jika tidak ditemukan A atau B
+    if (!found) return "Ekspresi tidak valid. Gunakan format seperti 2A+3B atau -A+B";
+    // Validasi ukuran matriks
+    if (matA.length !== matB.length || matA[0].length !== matB[0].length)
+        return "Ukuran matriks tidak sama";
+    // Hitung hasil
+    let result = [];
+    for (let i = 0; i < matA.length; i++) {
+        let row = [];
+        for (let j = 0; j < matA[0].length; j++) {
+            row.push(coefA * matA[i][j] + coefB * matB[i][j]);
+        }
+        result.push(row);
+    }
+    return formatMatrixPretty(result);
 }
