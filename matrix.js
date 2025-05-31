@@ -1,4 +1,3 @@
-// Fungsi untuk membuat/mengatur tabel input matriks dinamis
 function createMatrixTable(matrixId, rows=2, cols=2) {
     const table = document.getElementById('matrix'+matrixId);
     table.innerHTML = '';
@@ -17,7 +16,6 @@ function createMatrixTable(matrixId, rows=2, cols=2) {
     }
 }
 
-// Fungsi untuk mendapatkan nilai dari tabel matriks
 function readMatrixTable(matrixId) {
     const table = document.getElementById('matrix'+matrixId);
     const arr = [];
@@ -32,7 +30,6 @@ function readMatrixTable(matrixId) {
     return arr;
 }
 
-// Resize fungsi
 function resizeTable(matrixId, action) {
     const table = document.getElementById('matrix'+matrixId);
     let rows = table.rows.length;
@@ -74,7 +71,6 @@ function resizeTable(matrixId, action) {
     }
 }
 
-// Format matriks ke string
 function formatMatrix(matrix) {
     if (typeof matrix === "string") return matrix;
     if (!Array.isArray(matrix)) return toFraction(matrix);
@@ -82,9 +78,7 @@ function formatMatrix(matrix) {
 }
 
 function formatMatrixPretty(matrix) {
-    // Format matrix as pretty rows for display, rata kanan
     if (!Array.isArray(matrix)) return toFraction(matrix);
-    // Hitung lebar maksimum tiap kolom
     const n = matrix.length;
     const m = matrix[0].length;
     const colWidths = [];
@@ -115,7 +109,6 @@ function formatDeterminantResult(inputMatrix, detValue) {
     );
 }
 
-// Operasi matriks
 const Matrix = {
     add(a, b) {
         if (a.length !== b.length || a[0].length !== b[0].length)
@@ -194,7 +187,6 @@ function toFraction(x, tolerance = 1.0E-10) {
     return (sign < 0 ? "-" : "") + h1 + "/" + k1;
 }
 
-// Gauss-Jordan untuk invers
 function gaussJordanInverse(a, logSteps) {
     const n = a.length;
     if (n !== a[0].length) throw "Matriks harus persegi";
@@ -264,7 +256,6 @@ function bareissInverse(a, logSteps) {
     return inv;
 }
 
-// Tambahkan fungsi untuk memformat proses minor dan cofactor
 function formatMinorProcess(matrix, i, j) {
     const minor = Matrix.minor(matrix, i, j);
     const sign = ((i + j) % 2 === 0) ? 1 : -1;
@@ -293,14 +284,11 @@ function formatAdjugateProcess(matrix) {
 }
 
 function formatAdjugateDivision(adj, det) {
-    // Tampilkan setiap elemen adjugate dibagi determinan dalam bentuk pembagian, misal: -7/3
     return adj.map(row =>
         '( ' + row.map(val => {
-            // Jika hasil bagi bulat, tampilkan bulat, jika tidak tampilkan pembagian
             if (val % det === 0) {
                 return (val / det).toString();
             } else {
-                // Sederhanakan pecahan
                 function gcd(a, b) {
                     return b === 0 ? a : gcd(b, a % b);
                 }
@@ -334,7 +322,6 @@ function simplifyFraction(num, denom) {
 }
 
 function formatMatrixPrettyFraction(matrix) {
-    // Format matrix as pretty rows for display, menyederhanakan pecahan dan rata kanan
     if (!Array.isArray(matrix)) return toFraction(matrix);
     const n = matrix.length;
     const m = matrix[0].length;
@@ -354,7 +341,6 @@ function formatMatrixPrettyFraction(matrix) {
     ).join('\n');
 }
 
-// Invers matriks dengan metode yang dipilih
 Matrix.inverse = function(a, method = "adjugate", logSteps) {
     switch (method) {
         case "adjugate":
@@ -371,7 +357,6 @@ Matrix.inverse = function(a, method = "adjugate", logSteps) {
                 let inverseFinal = adj.map(row => row.map(x => simplifyFraction(x, det)));
                 logSteps.push("Hasil akhir invers:\n" + formatMatrixPrettyFraction(inverseFinal));
             }
-            // Return hasil akhir invers dalam bentuk angka (bukan string pecahan)
             return adj.map(row => row.map(x => x/det));
         case "gaussjordan":
             return gaussJordanInverse(a, logSteps);
@@ -382,7 +367,6 @@ Matrix.inverse = function(a, method = "adjugate", logSteps) {
     }
 };
 
-// Fungsi utama untuk handle tombol
 function calculate(op) {
     const matA = readMatrixTable('A');
     const matB = readMatrixTable('B');
@@ -418,7 +402,6 @@ function calculate(op) {
                 showDetails = true;
                 break;
             case 'adjA': {
-                // Tampilkan proses adjoint matriks A
                 const adjA = Matrix.adjoint(matA);
                 const logAdjoint = formatAdjointSteps(matA);
                 result = formatMatrixPretty(adjA);
@@ -430,7 +413,6 @@ function calculate(op) {
                 break;
             }
             case 'adjB': {
-                // Tampilkan proses adjoint matriks B
                 const adjB = Matrix.adjoint(matB);
                 const logAdjoint = formatAdjointSteps(matB);
                 result = formatMatrixPretty(adjB);
@@ -442,30 +424,25 @@ function calculate(op) {
                 break;
             }
             case 'invA': {
-                // Proses inverse dengan tiga metode
                 let logGauss = [], logAdj = [], logBareiss = [];
                 let invGauss, invAdj, invBareiss;
                 let errorGauss = "", errorAdj = "", errorBareiss = "";
-                // Bareiss
                 try {
                     invBareiss = bareissInverse(matA, logBareiss);
                 } catch (e) {
                     errorBareiss = e.toString();
                 }
-                // Adjugate
                 try {
                     invAdj = Matrix.inverse(matA, "adjugate", logAdj);
                 } catch (e) {
                     errorAdj = e.toString();
                 }
-                // Gauss-Jordan (DIPAKAI SEBAGAI HASIL UTAMA)
                 try {
                     invGauss = gaussJordanInverse(matA, logGauss);
                 } catch (e) {
                     errorGauss = e.toString();
                 }
                 showDetails = true;
-                // Hasil utama (pakai Gauss-Jordan jika tidak error, jika error pakai Adjugate, dst)
                 if (!errorGauss) {
                     result = formatInverseResult(matA, invGauss);
                 } else if (!errorAdj) {
@@ -475,7 +452,6 @@ function calculate(op) {
                 } else {
                     result = "Error: Matriks tidak memiliki invers";
                 }
-                // Details HTML: pakai <details>
                 detailsHTML = buildDetailsHTML(
                     errorBareiss, invBareiss, logBareiss,
                     errorGauss, invGauss, logGauss,
@@ -487,19 +463,16 @@ function calculate(op) {
                 let logGauss = [], logAdj = [], logBareiss = [];
                 let invGauss, invAdj, invBareiss;
                 let errorGauss = "", errorAdj = "", errorBareiss = "";
-                // Bareiss
                 try {
                     invBareiss = bareissInverse(matB, logBareiss);
                 } catch (e) {
                     errorBareiss = e.toString();
                 }
-                // Adjugate
                 try {
                     invAdj = Matrix.inverse(matB, "adjugate", logAdj);
                 } catch (e) {
                     errorAdj = e.toString();
                 }
-                // Gauss-Jordan (DIPAKAI SEBAGAI HASIL UTAMA)
                 try {
                     invGauss = gaussJordanInverse(matB, logGauss);
                 } catch (e) {
@@ -522,7 +495,6 @@ function calculate(op) {
                 );
                 break;
             }
-            // HAPUS case 'scalarA' dan 'scalarB'
             case 'manualExpr': {
                 const expr = document.getElementById('manualExpr').value.trim();
                 result = calculateManualMatrixExpression(expr, matA, matB);
@@ -545,23 +517,19 @@ if (showDetails) {
 }
 }
 
-// Inisialisasi awal
 window.onload = function() {
     createMatrixTable('A', 2, 2);
     createMatrixTable('B', 2, 2);
 }
 
 function formatAugmentedMatrix(left, right) {
-    // Gabungkan left dan right jadi satu array 2D
     const n = left.length;
     const m = left[0].length;
     const p = right[0].length;
-    // Gabungkan per baris
     const rows = [];
     for (let i = 0; i < n; i++) {
         rows.push([...left[i], '|', ...right[i]]);
     }
-    // Hitung lebar maksimum tiap kolom
     const colWidths = [];
     for (let j = 0; j < m + 1 + p; j++) {
         let maxLen = 0;
@@ -573,7 +541,6 @@ function formatAugmentedMatrix(left, right) {
         }
         colWidths[j] = maxLen;
     }
-    // Format tiap baris dengan padding rata kanan
     return rows.map(row =>
         '( ' +
         row.map((val, j) => {
@@ -610,23 +577,17 @@ function buildDeterminantDetailsHTML(errorTri, detTri, logTri, errorSarrus, detS
 
 function formatAdjointSteps(matrix) {
     let steps = [];
-    // Langkah minor dan cofactor
     steps.push("Langkah Minor dan Cofactor:\n" + formatCofactorProcess(matrix));
-    // Matriks cofactor
     const cofactor = Matrix.cofactorMatrix(matrix);
     steps.push("Matriks Cofactor:\n" + formatMatrixPretty(cofactor));
-    // Transpose (Adjugate)
     const adj = Matrix.transpose(cofactor);
     steps.push("Transpose (Adjugate):\n" + formatMatrixPretty(adj));
     return steps.join('\n\n');
 }
 
-// Fungsi untuk menampilkan proses Sarrus pada matriks 3x3
 function sarrusDeterminantSteps(matrix) {
-    // matrix: array 3x3
     let m = matrix;
     let steps = [];
-    // Salin dua kolom pertama ke kanan
     let ext = [
         [m[0][0], m[0][1], m[0][2], m[0][0], m[0][1]],
         [m[1][0], m[1][1], m[1][2], m[1][0], m[1][1]],
@@ -635,7 +596,6 @@ function sarrusDeterminantSteps(matrix) {
     steps.push("Salin dua kolom pertama ke kanan:\n" +
         ext.map(row => row.map(x => toFraction(x)).join('\t')).join('\n')
     );
-    // Hitung jumlah diagonal utama
     let diag1 = m[0][0]*m[1][1]*m[2][2];
     let diag2 = m[0][1]*m[1][2]*m[2][0];
     let diag3 = m[0][2]*m[1][0]*m[2][1];
@@ -645,7 +605,6 @@ function sarrusDeterminantSteps(matrix) {
         `(${toFraction(m[0][1])} × ${toFraction(m[1][2])} × ${toFraction(m[2][0])}) = ${toFraction(diag2)}\n` +
         `(${toFraction(m[0][2])} × ${toFraction(m[1][0])} × ${toFraction(m[2][1])}) = ${toFraction(diag3)}`
     );
-    // Hitung jumlah diagonal anti
     let adiag1 = m[0][2]*m[1][1]*m[2][0];
     let adiag2 = m[0][0]*m[1][2]*m[2][1];
     let adiag3 = m[0][1]*m[1][0]*m[2][2];
@@ -666,16 +625,12 @@ function sarrusDeterminantSteps(matrix) {
     return steps.join('\n\n');
 }
 
-// Fungsi untuk menampilkan matriks Sarrus dengan garis diagonal
 function formatSarrusMatrixWithDiagonals(matrix) {
-    // matrix: 3x3
-    // Buat matriks 3x5 (salin dua kolom pertama ke kanan)
     let ext = [
         [matrix[0][0], matrix[0][1], matrix[0][2], matrix[0][0], matrix[0][1]],
         [matrix[1][0], matrix[1][1], matrix[1][2], matrix[1][0], matrix[1][1]],
         [matrix[2][0], matrix[2][1], matrix[2][2], matrix[2][0], matrix[2][1]]
     ];
-    // Tampilkan tanpa garis, hanya angka
     let lines = [];
     for (let i = 0; i < 3; i++) {
         let row = [];
@@ -687,7 +642,6 @@ function formatSarrusMatrixWithDiagonals(matrix) {
     return lines.join('\n');
 }
 
-// Fungsi untuk menampilkan detail proses aturan Sarrus
 function buildDeterminantDetailsHTML_Sarrus(inputMatrix, detValue) {
     if (
         Array.isArray(inputMatrix) &&
@@ -704,8 +658,6 @@ function buildDeterminantDetailsHTML_Sarrus(inputMatrix, detValue) {
 }
 
 function calculateManualMatrixExpression(expr, matA, matB) {
-    // Mendukung ekspresi seperti: 2A+3B, -A+B, 0.5A-2B, dst
-    // Hanya mendukung A dan B, + dan -, serta koefisien real
     let re = /([+-]?\s*\d*\.?\d*)\s*([AB])/gi;
     let m, coefA = 0, coefB = 0, found = false;
     while ((m = re.exec(expr)) !== null) {
@@ -717,12 +669,9 @@ function calculateManualMatrixExpression(expr, matA, matB) {
         if (m[2] === 'A') coefA += coef;
         if (m[2] === 'B') coefB += coef;
     }
-    // Jika tidak ditemukan A atau B
     if (!found) return "Ekspresi tidak valid. Gunakan format seperti 2A+3B atau -A+B";
-    // Validasi ukuran matriks
     if (matA.length !== matB.length || matA[0].length !== matB[0].length)
         return "Ukuran matriks tidak sama";
-    // Hitung hasil
     let result = [];
     for (let i = 0; i < matA.length; i++) {
         let row = [];
