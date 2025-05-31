@@ -21,7 +21,6 @@
                     <button onclick="resizeTable('A', 'removeCol')">-1</button>
                 </div>
                 <table id="matrixA"></table>
-                <!-- Tombol operasi khusus Matriks A -->
                 <div class="operations operations-a">
                     <button onclick="calculate('transposeA')">Transpose A</button>
                     <button onclick="calculate('detA')">Determinan A</button>
@@ -40,7 +39,6 @@
                     <button onclick="resizeTable('B', 'removeCol')">-1</button>
                 </div>
                 <table id="matrixB"></table>
-                <!-- Tombol operasi khusus Matriks B -->
                 <div class="operations operations-b">
                     <button onclick="calculate('transposeB')">Transpose B</button>
                     <button onclick="calculate('detB')">Determinan B</button>
@@ -49,13 +47,11 @@
                 </div>
             </div>
         </div>
-        <!-- Operasi gabungan di bawah kedua matriks -->
         <div class="operations">
             <button onclick="calculate('add')">Penjumlahan (A + B)</button>
             <button onclick="calculate('subtract')">Pengurangan (A - B)</button>
             <button onclick="calculate('multiply')">Perkalian (A × B)</button>
         </div>
-        <!-- Kolom input ekspresi skalar/manual -->
         <div class="operations" style="margin-bottom: 20px;">
             <label for="manualExpr" style="margin-right:8px;">Ekspresi Matriks:</label>
             <input type="text" id="manualExpr" value="2A+3B" style="width:120px; margin-right:8px;" placeholder="misal: 2A-3B">
