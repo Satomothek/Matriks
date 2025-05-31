@@ -109,5 +109,5 @@ pre#result {
     padding: 20px 0;
     display: flex;
     justify-content: center;
-    align-items: flex-start; /* atau center jika ingin vertikal juga */
+    align-items: flex-start;
 }
