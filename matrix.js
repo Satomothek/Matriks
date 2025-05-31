@@ -78,7 +78,9 @@ function formatMatrix(matrix) {
 }
 
 function formatMatrixPretty(matrix) {
+    // Format matrix as pretty rows for display, rata kanan
     if (!Array.isArray(matrix)) return toFraction(matrix);
+    // Hitung lebar maksimum tiap kolom
     const n = matrix.length;
     const m = matrix[0].length;
     const colWidths = [];
@@ -229,7 +231,10 @@ function bareissInverse(a, logSteps) {
     if (n !== a[0].length) throw "Matriks harus persegi";
     let m = a.map((row, i) => [...row, ...Array.from({length: n}, (_, j) => i === j ? 1 : 0)]);
     let prevPivot = 1;
-    if (logSteps) logSteps.push("Awal (augmented):\n" + formatMatrix(m));
+    if (logSteps) logSteps.push("Awal (augmented):\n" + formatAugmentedMatrix(
+        m.map(row => row.slice(0, n)),
+        m.map(row => row.slice(n))
+    ));
     for (let k = 0; k < n; k++) {
         let pivot = m[k][k];
         if (pivot === 0) throw "Matriks tidak memiliki invers (pivot 0)";
@@ -242,7 +247,10 @@ function bareissInverse(a, logSteps) {
             }
         }
         prevPivot = pivot;
-        if (logSteps) logSteps.push(`Setelah eliminasi kolom ${k+1}:\n` + formatMatrix(m));
+        if (logSteps) logSteps.push(`Setelah eliminasi kolom ${k+1}:\n` + formatAugmentedMatrix(
+            m.map(row => row.slice(0, n)),
+            m.map(row => row.slice(n))
+        ));
     }
     for (let i = 0; i < n; i++) {
         let factor = m[i][i];
@@ -250,9 +258,15 @@ function bareissInverse(a, logSteps) {
             m[i][j] /= factor;
         }
     }
-    if (logSteps) logSteps.push("Normalisasi diagonal:\n" + formatMatrix(m));
+    if (logSteps) logSteps.push("Normalisasi diagonal:\n" + formatAugmentedMatrix(
+        m.map(row => row.slice(0, n)),
+        m.map(row => row.slice(n))
+    ));
     let inv = m.map(row => row.slice(n));
-    if (logSteps) logSteps.push("Ambil bagian kanan sebagai invers:\n" + formatAugmentedMatrix(m.map(row => row.slice(0, n)), inv));
+    if (logSteps) logSteps.push("Ambil bagian kanan sebagai invers:\n" + formatAugmentedMatrix(
+        m.map(row => row.slice(0, n)),
+        inv
+    ));
     return inv;
 }
 
@@ -353,7 +367,6 @@ Matrix.inverse = function(a, method = "adjugate", logSteps) {
                 logSteps.push("Langkah Minor dan Cofactor:\n" + formatCofactorProcess(a));
                 logSteps.push("Matriks Cofactor:\n" + formatMatrixPretty(cofactor) + "\n\nTranspose (Adjugate):\n" + formatMatrixPretty(adj));
                 logSteps.push(`Invers = (1/det) * adjugate, det = ${det}`);
-                // Hasil akhir invers dalam bentuk pecahan sederhana
                 let inverseFinal = adj.map(row => row.map(x => simplifyFraction(x, det)));
                 logSteps.push("Hasil akhir invers:\n" + formatMatrixPrettyFraction(inverseFinal));
             }
@@ -472,7 +485,7 @@ function calculate(op) {
                     invAdj = Matrix.inverse(matB, "adjugate", logAdj);
                 } catch (e) {
                     errorAdj = e.toString();
-                }
+                })
                 try {
                     invGauss = gaussJordanInverse(matB, logGauss);
                 } catch (e) {
@@ -553,9 +566,17 @@ function formatAugmentedMatrix(left, right) {
 }
 
 function buildDetailsHTML(errorBareiss, invBareiss, logBareiss, errorGauss, invGauss, logGauss, errorAdj, invAdj, logAdj) {
+    let montanteResult = "";
+    if (!errorBareiss && Array.isArray(invBareiss)) {
+        const n = invBareiss.length;
+        const identitas = Array.from({length: n}, (_, i) =>
+            Array.from({length: n}, (_, j) => (i === j ? 1 : 0))
+        );
+        montanteResult = formatAugmentedMatrix(invBareiss, identitas);
+    }
     return `<details>
         <summary>Montante's method (Bareiss algorithm)</summary>
-        <pre>${errorBareiss ? errorBareiss : (formatMatrix(invBareiss) + "\n\n" + logBareiss.join("\n\n"))}</pre>
+        <pre>${errorBareiss ? errorBareiss : (montanteResult + "\n\n" + logBareiss.join("\n\n"))}</pre>
     </details>
     <details>
         <summary>Gauss–Jordan elimination</summary>
